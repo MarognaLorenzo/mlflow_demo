@@ -2,6 +2,21 @@
 
 A demonstration repository showcasing MLflow, an open-source platform for managing the machine learning lifecycle.
 
+## Structure
+The repository is organized as follows:
+
+```
+mlflow_demo/
+├── README.md          # Main documentation
+├── serverFolder/      # MLflow server configuration
+└── researcher/        # Example code for the demonstration
+    ├── example1.py    # Single-run introductory training example on Fashion Mnist
+    ├── example2.py    # Hierchical run with hyperparameter tuning(Optuna) training example on Fashion Mnist
+    ├── helpers.py     # Helpers function for argument parsing and parameters retrieval
+    ├── log_plot.py    # Python script for generating a plot of loss function for a given run
+    └── cfg/           # Configuration files
+```
+
 ## Overview
 
 MLflow is a platform that helps to track experiments, package code into reproducible runs, and share and deploy models. It offers four main components:

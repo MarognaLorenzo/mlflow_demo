@@ -1,4 +1,3 @@
-#%% 
 import mlflow.tracking
 import torch
 from torch import nn
@@ -10,8 +9,13 @@ from torchvision.transforms import ToTensor
 import optuna
 
 import mlflow
+import sys
+import helpers
 
+assert len(sys.argv) > 1, "Please pass the configuration file to the script."
+hparams = helpers.parse_configuration_yaml(sys.argv[1])
 
+tracking_uri=hparams.tracking_uri
 
 training_data = datasets.FashionMNIST(
     root="data",
@@ -137,55 +141,43 @@ def evaluate(dataloader, model, loss_fn, metrics_fn, epoch):
 
 
 
-mlflow.set_tracking_uri(uri="http://127.0.0.1:8080")
+mlflow.set_tracking_uri(uri=tracking_uri)
 
 
-mlflow.set_experiment("mnist-reference-v2")
+mlflow.set_experiment("mlflow_demo_expample1")
 
 loss_fn = nn.CrossEntropyLoss()
 metric_fn = Accuracy(task="multiclass", num_classes=10).to(device)
-epochs = 3
 
 def objective(trial):
     with mlflow.start_run(nested=True) as nested_run:
-        lr = trial.suggest_float("lr", 1e-10, 1e10, log=True)
 
+        lr = trial.suggest_float("lr", 1e-10, 1e10, log=True)
         batch_size = trial.suggest_int("batch_size", 4, 256, log=True)
+        hidden_channels = trial.suggest_int("hidden_channels", 4, 10, log= True)
 
         train_dataloader = DataLoader(training_data, batch_size=batch_size)
         test_dataloader = DataLoader(test_data, batch_size=batch_size)
 
-        # classifier = trial.suggest_categorical("classifier", ["mlp", "cnn"])
-        classifier = "cnn"
-        print(f"testing with a {classifier}")
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+
 
         params = {
             "learning_rate": lr,
             "batch_size": batch_size,
-            "classifier" : classifier,
+            "optimizer": "SGD",
         }
-        print("params:  ", params)
-
-        if classifier == "mlp":
-            hidden_features = trial.suggest_int("hidden_features", 5, 2048, log=True)
-            model_params = {
-                "hidden_features":hidden_features,
-                "out_features": 10, # 10 output classes
-            }
-            model = MLP(**model_params)
-        else:
-            hidden_channels = trial.suggest_int("hidden_channels", 4, 10, log= True)
-            model_params = {
-                "hidden_channels": hidden_channels,
-            }
-            model = ImageClassifier(**model_params)
+        
+        model_params = {
+            "hidden_channels": hidden_channels,
+        }
+        model = ImageClassifier(**model_params)
 
         params.update(model_params)
         mlflow.log_params(params)
 
-        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         best = 0
-        for t in range(epochs):
+        for t in range(hparams.epochs):
             print(f"Epoch {t+1}\n-------------------------------")
             train(train_dataloader, model, loss_fn, metric_fn, optimizer, epoch=t)
             best = max(best, evaluate(test_dataloader, model, loss_fn, metric_fn, epoch=0))
@@ -194,10 +186,9 @@ def objective(trial):
 
 with mlflow.start_run(nested=True) as run:
     params = {
-        "epochs":epochs,
+        "epochs":hparams.epochs,
         "loss_function": loss_fn.__class__.__name__,
         "metric_function": metric_fn.__class__.__name__,
-        "optimizer": "SGD",
     }
 
     # Log training parameters.
@@ -211,41 +202,9 @@ with mlflow.start_run(nested=True) as run:
     # mlflow.pytorch.log_model(model, "pre_trained")
 
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=40)
+    study.optimize(objective, n_trials=hparams.n_trials)
 
     trial = study.best_trial
 
     print("Accuracy: {}".format(trial.value))
     print("Best hyperparameters: {}".format(trial.params))
-
-    # Save the trained model to MLflow.
-    # mlflow.pytorch.log_model(model, "post_trained")
-
-# %%
-# mlflow.set_tracking_uri(uri="http://127.0.0.1:8080")
-# with mlflow.start_run(f"ef2537e567a640979d0dc792323fa4b5") as run:
-#     print(run._data._params)
-#     print(run._data.metrics["loss"])
-# %%
-
-mlflow_client = mlflow.tracking.MlflowClient("http://127.0.0.1:8080")
-# run_data_dict = mlflow_client.get_run("ef2537e567a640979d0dc792323fa4b5").data.to_dictionary()
-losses = mlflow_client.get_metric_history(run_id=run.info.run_id, key="loss")
-
-values = list(enumerate(map(lambda metric :metric.value, losses)))
-print(values)
-# %%
-import matplotlib.pyplot as plt
-
-fig = plt.figure(figsize=(10, 6))
-plt.plot(*zip(*values))
-plt.xlabel('Step')
-plt.ylabel('Loss')
-plt.title('Training Loss Over Time')
-plt.grid(True)
-plt.savefig('loss_line_plot.png')
-plt.close()
-
-# %%
-mlflow_client.log_artifact(run_id=run.info.run_id, local_path="loss_line_plot.png")
-# %%

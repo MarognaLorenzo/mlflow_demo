@@ -168,24 +168,3 @@ with mlflow.start_run(run_name=hparams.run_name) as run:
 
     # Save the trained model to MLflow.
     mlflow.pytorch.log_model(model, "final_model")
-
-# %%
-mlflow_client = mlflow.tracking.MlflowClient(hparams.tracking_uri)
-losses = mlflow_client.get_metric_history(run_id=run.info.run_id, key="loss")
-values = list(enumerate(map(lambda metric: metric.value, losses)))
-print(values)
-# %%
-
-fig = plt.figure(figsize=(10, 6))
-plt.plot(*zip(*values))
-plt.xlabel('Step')
-plt.ylabel('Loss')
-plt.title('Training Loss Over Time')
-plt.grid(True)
-plt.savefig('loss_line_plot.png')
-plt.close()
-
-# %%
-mlflow_client.log_artifact(run_id=run.info.run_id,
-                           local_path="loss_line_plot.png")
-# %%

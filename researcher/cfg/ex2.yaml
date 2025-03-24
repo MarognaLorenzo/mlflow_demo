@@ -1,0 +1,8 @@
+# Configuration default file for training models on Fashion Mnist
+
+tracking_uri : "http://127.0.0.1:8080"
+epochs : 3
+run_id : ""
+run_name : "" 
+experiment_name: "mlflow_demo_expample2"
+n_trials : 3

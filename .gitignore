@@ -1,2 +1,5 @@
-serverFolder/*
+serverFolder/ml*
 researcher/__pycache*
+researcher/data/*
+researcher/*.txt
+researcher/*.png

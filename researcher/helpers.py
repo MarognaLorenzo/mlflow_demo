@@ -27,6 +27,20 @@ def override_conf(hparams: Dict):
     Configuration agumented with overrides. : Namespace
 
     """
+    def str2bool(v:str) -> bool:
+        """
+        Parses a string to the boolean value. Supports yes/no, true/false, t/f,
+        y/n, 1/0. 
+        """
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ('yes', 'true', 't', 'y', '1'):
+            return True
+        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Boolean value expected.')
+
     parser = argparse.ArgumentParser()
     for key, value in hparams.items():
         parser.add_argument(f"--{key}", type=str2bool if isinstance(value, bool) else type(value), default=value)
@@ -39,40 +53,27 @@ def override_conf(hparams: Dict):
     return Namespace(**hparams)
 
 
-def parse_configuration(cfg: Union[str, Path]):
-    """Parses default configuration and compares it with user defined.
-    It processes a user-defined python file that creates the configuration.
-    Additionally, it handles eventual overrides from command line.
+def parse_configuration_yaml(cfg: Union[str, Path]):
+    import yaml
+    """Parses a YAML configuration file.
 
     Arguments
     ---------
     cfg : Union[str, Path]
-        Configuration file defined by the user
+        Path to YAML configuration file
 
     Returns
     -------
     Configuration Namespace. : argparse.Namespace
-
     """
+    
     with open(cfg, "r") as f:
-        conf = f.read()
-
-    local_vars = {}
-
-    exec(conf, {}, local_vars)
+        local_vars = yaml.safe_load(f)
+    print("Parse: ", local_vars)
 
     return override_conf(local_vars)
 
 
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 
@@ -129,23 +130,4 @@ def export_configuration(dictionary: Dict, file_path: str) -> None:
                 f.write(f"{key}={value}\n")
 
 
-def parse_configuration_yaml(cfg: Union[str, Path]):
-    import yaml
-    """Parses a YAML configuration file.
-
-    Arguments
-    ---------
-    cfg : Union[str, Path]
-        Path to YAML configuration file
-
-    Returns
-    -------
-    Configuration Namespace. : argparse.Namespace
-    """
-    
-    with open(cfg, "r") as f:
-        local_vars = yaml.safe_load(f)
-    breakpoint()
-
-    return override_conf(local_vars)
 

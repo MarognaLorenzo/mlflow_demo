@@ -144,7 +144,7 @@ def evaluate(dataloader, model, loss_fn, metrics_fn, epoch):
 mlflow.set_tracking_uri(uri=tracking_uri)
 
 
-mlflow.set_experiment("mlflow_demo_expample1")
+mlflow.set_experiment(hparams.experiment_name)
 
 loss_fn = nn.CrossEntropyLoss()
 metric_fn = Accuracy(task="multiclass", num_classes=10).to(device)
@@ -159,7 +159,6 @@ def objective(trial):
         train_dataloader = DataLoader(training_data, batch_size=batch_size)
         test_dataloader = DataLoader(test_data, batch_size=batch_size)
 
-        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
 
         params = {
@@ -173,6 +172,7 @@ def objective(trial):
         }
         model = ImageClassifier(**model_params)
 
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         params.update(model_params)
         mlflow.log_params(params)
 
@@ -196,9 +196,9 @@ with mlflow.start_run(nested=True) as run:
     mlflow.log_metric("mum",1.2)
 
     # Log model summary.
-    with open("cnn_model_summary.txt", "w") as f:
+    with open("model_summary.txt", "w") as f:
         f.write(str(summary(ImageClassifier())))
-    mlflow.log_artifact("cnn_model_summary.txt")
+    mlflow.log_artifact("model_summary.txt")
     # mlflow.pytorch.log_model(model, "pre_trained")
 
     study = optuna.create_study(direction="maximize")

@@ -140,7 +140,7 @@ batch_size = 64
 mlflow.set_tracking_uri(uri=hparams.tracking_uri)
 
 
-mlflow.set_experiment("mnist-reference-v2")
+mlflow.set_experiment(experiment_name=hparams.experiment_name)
 
 with mlflow.start_run(run_name=hparams.run_name) as run:
     params = vars(hparams)

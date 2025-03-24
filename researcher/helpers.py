@@ -69,7 +69,6 @@ def parse_configuration_yaml(cfg: Union[str, Path]):
     
     with open(cfg, "r") as f:
         local_vars = yaml.safe_load(f)
-    print("Parse: ", local_vars)
 
     return override_conf(local_vars)
 

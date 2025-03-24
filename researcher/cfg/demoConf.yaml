@@ -1,0 +1,6 @@
+# Configuration default file for training models on Fashion Mnist
+
+tracking_uri : "http://127.0.0.1:8080"
+epochs : 3
+
+n_trials : 5

@@ -125,8 +125,10 @@ def export_configuration(dictionary: Dict, file_path: str) -> None:
         None
         """
         with open(file_path, 'w') as f:
+            # yaml format is key:value, otherwise will be formatted python style key=value
+            separator = ":" if file_path.split(".")[1][1:] == "yaml" else "="
             for key, value in dictionary.items():
-                f.write(f"{key}={value}\n")
+                f.write(f"{key}{separator}{value}\n")
 
 
 

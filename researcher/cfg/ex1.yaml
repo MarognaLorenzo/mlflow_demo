@@ -2,6 +2,7 @@
 
 tracking_uri : "http://127.0.0.1:8080"
 epochs : 3
+batch_size: 64
 run_id : ""
 run_name : "" 
 experiment_name: "mlflow_demo_expample1"

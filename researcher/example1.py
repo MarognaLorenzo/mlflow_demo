@@ -37,8 +37,6 @@ print(f"Size of training dataset: {len(training_data)}")
 print(f"Size of test dataset: {len(test_data)}")
 
 
-train_dataloader = DataLoader(training_data, batch_size=64)
-test_dataloader = DataLoader(test_data, batch_size=64)
 
 
 class ImageClassifier(nn.Module):
@@ -59,8 +57,6 @@ class ImageClassifier(nn.Module):
 
     def forward(self, x):
         for layer in [self.conv1, self.conv2, self.head]:
-            # if x.isnan().any():
-            #     breakpoint()
             x = layer(x)
         return x
 
@@ -96,7 +92,10 @@ def train(dataloader, model, loss_fn, metrics_fn, optimizer, epoch):
 
         if batch % 100 == 0:
             loss, current = loss.item(), batch
-            step = batch // 100 * (epoch + 1)
+            # step = batch // 100 + (epoch * (len(dataloader)//100))
+            step = batch // 100 + epoch * 10
+
+            # log metrics on mlflow - tracking_uri neeeds to be set.
             mlflow.log_metric("loss", f"{loss:2f}", step=step)
             mlflow.log_metric("accuracy", f"{accuracy:2f}", step=step)
             print(f"loss: {loss:2f} accuracy: {accuracy:2f} [{current} / {len(dataloader)}]")
@@ -111,6 +110,9 @@ def evaluate(dataloader, model, loss_fn, metrics_fn, epoch):
         loss_fn: a callable, the loss function.
         metrics_fn: a callable, the metrics function.
         epoch: an integer, the current epoch number.
+    Returns:
+        float: The evaluation accuracy score averaged across all batches.
+    
     """
     num_batches = len(dataloader)
     model.eval()
@@ -128,18 +130,16 @@ def evaluate(dataloader, model, loss_fn, metrics_fn, epoch):
     mlflow.log_metric("eval_accuracy", f"{eval_accuracy:2f}", step=epoch)
 
     print(f"Eval metrics: \nAccuracy: {eval_accuracy:.2f}, Avg loss: {eval_loss:2f} \n")
+    return eval_accuracy
 
 
 loss_fn = nn.CrossEntropyLoss()
 metric_fn = Accuracy(task="multiclass", num_classes=10).to(device)
 model = ImageClassifier().to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
-batch_size = 64
 
 
 mlflow.set_tracking_uri(uri=hparams.tracking_uri)
-
-
 mlflow.set_experiment(experiment_name=hparams.experiment_name)
 
 with mlflow.start_run(run_name=hparams.run_name) as run:
@@ -148,7 +148,11 @@ with mlflow.start_run(run_name=hparams.run_name) as run:
         "loss_function": loss_fn.__class__.__name__,
         "metric_function": metric_fn.__class__.__name__,
         "optimizer": "SGD",
+        "batch_size": hparams.batch_size
     })
+
+    train_dataloader = DataLoader(training_data, batch_size=hparams.batch_size)
+    test_dataloader = DataLoader(test_data, batch_size=hparams.batch_size)
 
     # Log training parameters.
     mlflow.log_params(params)
@@ -158,13 +162,17 @@ with mlflow.start_run(run_name=hparams.run_name) as run:
         f.write(str(summary(model)))
     mlflow.log_artifact("model_summary.txt")
 
-
-    # mlflow.pytorch.log_model(model, "pre_trained")
+    # The higher the better value
+    best_so_far = 0
 
     for t in range(hparams.epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, metric_fn, optimizer, epoch=t)
-        evaluate(test_dataloader, model, loss_fn, metric_fn, epoch=0)
+        eval = evaluate(test_dataloader, model, loss_fn, metric_fn, epoch=t)
+        if eval > best_so_far:
+            print(f"Model {t} has improved from {best_so_far:.2f} to {eval:.2f}.\n Updating best model")
+            mlflow.pytorch.log_model(model, f"best")
+            best_so_far = eval
 
-    # Save the trained model to MLflow.
-    mlflow.pytorch.log_model(model, "final_model")
+    # Save the final trained model to MLflow.
+    mlflow.pytorch.log_model(model, "final")

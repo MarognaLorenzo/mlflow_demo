@@ -55,28 +55,10 @@ class ImageClassifier(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-class MLP(nn.Module):
-    def __init__(
-            self,
-            hidden_features: int, 
-            out_features: int
-    ):
-        super().__init__()
-        layer1 = nn.LazyLinear(out_features=hidden_features)
-        layer2 = nn.Linear(in_features=hidden_features, out_features=out_features)
-        self.sequential = nn.Sequential(
-            layer1, 
-            layer2
-        )
-        
-    def forward(self, x: torch.Tensor):
-        x = x.flatten()
-        x = self.sequential(x)
-        return x
-
 
 # Get cpu or gpu for training.
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available(
+) else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 def train(dataloader, model, loss_fn, metrics_fn, optimizer, epoch):
@@ -106,6 +88,8 @@ def train(dataloader, model, loss_fn, metrics_fn, optimizer, epoch):
         if batch % 100 == 0:
             loss, current = loss.item(), batch
             step = batch // 100 * (epoch + 1)
+
+            # log metrics on mlflow - tracking_uri neeeds to be set.
             mlflow.log_metric("loss", f"{loss:2f}", step=step)
             mlflow.log_metric("accuracy", f"{accuracy:2f}", step=step)
             print(f"loss: {loss:2f} accuracy: {accuracy:2f} [{current} / {len(dataloader)}]")
@@ -120,6 +104,8 @@ def evaluate(dataloader, model, loss_fn, metrics_fn, epoch):
         loss_fn: a callable, the loss function.
         metrics_fn: a callable, the metrics function.
         epoch: an integer, the current epoch number.
+    Returns:
+        float: The evaluation accuracy score averaged across all batches.
     """
     num_batches = len(dataloader)
     model.eval()
@@ -132,24 +118,31 @@ def evaluate(dataloader, model, loss_fn, metrics_fn, epoch):
             eval_accuracy += metrics_fn(pred, y)
     eval_loss /= num_batches
     eval_accuracy /= num_batches
-    print(eval_loss, eval_accuracy)
-    mlflow.log_metric("eval_loss", f"{eval_loss:2f}", step=epoch, synchronous=True)
-    mlflow.log_metric("eval_accuracy", f"{eval_accuracy:2f}", step=epoch, synchronous=True)
+    mlflow.log_metric("eval_loss", f"{eval_loss:2f}", step=epoch)
+    mlflow.log_metric("eval_accuracy", f"{eval_accuracy:2f}", step=epoch)
 
     print(f"Eval metrics: \nAccuracy: {eval_accuracy:.2f}, Avg loss: {eval_loss:2f} \n")
     return eval_accuracy
 
 
-
-mlflow.set_tracking_uri(uri=tracking_uri)
-
-
-mlflow.set_experiment(hparams.experiment_name)
-
 loss_fn = nn.CrossEntropyLoss()
 metric_fn = Accuracy(task="multiclass", num_classes=10).to(device)
 
+mlflow.set_tracking_uri(uri=tracking_uri)
+mlflow.set_experiment(hparams.experiment_name)
+
+
 def objective(trial):
+    """Objective function for hyperparameter optimization.
+
+    Args:
+        trial: An Optuna trial object for suggesting hyperparameters.
+
+    Returns:
+        float: The best evaluation accuracy achieved during training.
+    """
+
+    # mlflow child run, it runs "inside" the parent run
     with mlflow.start_run(nested=True) as nested_run:
 
         lr = trial.suggest_float("lr", 1e-10, 1e10, log=True)
@@ -174,14 +167,20 @@ def objective(trial):
 
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         params.update(model_params)
-        mlflow.log_params(params)
 
-        best = 0
+        mlflow.log_params(params)
+        
+        # Log model summary.
+        with open("model_summary.txt", "w") as f:
+            f.write(str(summary(model)))
+        mlflow.log_artifact("model_summary.txt")
+
+        results = []
         for t in range(hparams.epochs):
             print(f"Epoch {t+1}\n-------------------------------")
             train(train_dataloader, model, loss_fn, metric_fn, optimizer, epoch=t)
-            best = max(best, evaluate(test_dataloader, model, loss_fn, metric_fn, epoch=0))
-    return best
+            results.append(evaluate(test_dataloader, model, loss_fn, metric_fn, epoch=t))
+    return max(results)
 
 
 with mlflow.start_run(nested=True) as run:
@@ -193,13 +192,6 @@ with mlflow.start_run(nested=True) as run:
 
     # Log training parameters.
     mlflow.log_params(params)
-    mlflow.log_metric("mum",1.2)
-
-    # Log model summary.
-    with open("model_summary.txt", "w") as f:
-        f.write(str(summary(ImageClassifier())))
-    mlflow.log_artifact("model_summary.txt")
-    # mlflow.pytorch.log_model(model, "pre_trained")
 
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=hparams.n_trials)

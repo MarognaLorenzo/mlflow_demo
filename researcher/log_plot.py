@@ -22,10 +22,11 @@ losses = mlflow_client.get_metric_history(run_id=hparams.run_id, key="loss")
 values = list(map(lambda metric :metric.value, losses))
 print(values)
 
+# Retrieve parameters from the selected run
+prev_params = helpers.get_run_params(run_id=hparams.run_id)
 
 fig = plt.figure(figsize=(10, 6))
 plt.plot(values)
-plt.axvline(x=20, color='r', linestyle='--')
 plt.xlabel('Step')
 plt.ylabel('Loss')
 plt.title('Training Loss Over Time')
@@ -33,7 +34,8 @@ plt.grid(True)
 
 epoch_counter = 0
 for i, loss in enumerate(losses):
-    if loss.step == 0: 
+    if loss.step % (len(losses) // int(prev_params["epochs"])) == 0: 
+        print(i)
         plt.axvline(x = i, color='red', linestyle='--')
         plt.text(i+1, plt.ylim()[1], f'Epoch {epoch_counter}', rotation=90, verticalalignment='top')
         epoch_counter += 1

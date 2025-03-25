@@ -8,7 +8,7 @@ The repository is organized as follows:
 ```
 mlflow_demo/
 ├── README.md          # Main documentation
-├── serverFolder/      # MLflow server configuration
+├── serverFolder/      # MLflow server configuration, run the mlflow server here!
 └── researcher/        # Example code for the demonstration
     ├── example1.py    # Single-run introductory training example on Fashion Mnist
     ├── example2.py    # Hierchical run with hyperparameter tuning(Optuna) training example on Fashion Mnist
@@ -76,3 +76,9 @@ with mlflow.start_run():
 ```
 
 Every experiment and run will be assigned a unique ID. You can then use this ID to retrieve further information later from a specific run.
+
+## Usage
+1. Navigate to serverFolder and start a mlflow server
+2. In the Folder researcher, run the scripts that you prefer passing a file from researcher/cfg as a first argument
+3. Navigate to the `host:port` address with a browser to check the results of your experiment!
+

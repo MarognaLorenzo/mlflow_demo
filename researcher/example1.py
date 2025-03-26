@@ -31,6 +31,9 @@ test_data = datasets.FashionMNIST(
     transform=ToTensor(),
 )
 
+train_dataloader = DataLoader(training_data, batch_size=hparams.batch_size)
+test_dataloader = DataLoader(test_data, batch_size=hparams.batch_size)
+
 
 print(f"Image size: {training_data[0][0].shape}")
 print(f"Size of training dataset: {len(training_data)}")
@@ -151,11 +154,9 @@ with mlflow.start_run(run_name=hparams.run_name) as run:
         "batch_size": hparams.batch_size
     })
 
-    train_dataloader = DataLoader(training_data, batch_size=hparams.batch_size)
-    test_dataloader = DataLoader(test_data, batch_size=hparams.batch_size)
-
     # Log training parameters.
     mlflow.log_params(params)
+
 
     # Log model summary.
     with open("model_summary.txt", "w") as f:

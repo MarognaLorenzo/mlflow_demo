@@ -44,3 +44,7 @@ plt.savefig('loss_line_plot.png')
 plt.close()
 
 mlflow_client.log_artifact(run_id=hparams.run_id, local_path="loss_line_plot.png")
+
+# Load the trained model from the MLflow run
+# model_name = "final"
+# loaded_model = mlflow.pytorch.load_model(f"runs:/{hparams.run_id}/{model_name}")

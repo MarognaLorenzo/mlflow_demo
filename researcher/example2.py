@@ -163,7 +163,7 @@ def objective(trial):
         model_params = {
             "hidden_channels": hidden_channels,
         }
-        model = ImageClassifier(**model_params)
+        model = ImageClassifier(**model_params).to(device)
 
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         params.update(model_params)

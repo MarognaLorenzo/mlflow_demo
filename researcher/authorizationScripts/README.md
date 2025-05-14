@@ -1,6 +1,8 @@
 # Mlflow authorization  
 This folder contains scripts related to authorization and authentication processes. These scripts are essential for managing access control and security of your account with the cloud running instance of mlflow.
 
+> ⚠️ **Note**: Authorization service is currently not required for MLflow. This documentation is for future reference when authentication will be enabled.
+
 ## Usage
 
 1. Please provide the contact information required [here](https://docs.google.com/forms/d/e/1FAIpQLSdJRO8ZcNn1gNe3yRuWtP2j2ujQbCgA0NEdjMhlyHuInfDr_Q/viewform?usp=header).
